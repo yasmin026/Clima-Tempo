@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClimaTempo - Dashboard Meteorológico</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            hover: '#334155',
+                            border: '#334155/60',
+                            accent: '#38bdf8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Skeleton Animation */
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 md:p-8 antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Container Principal -->
+    <div class="max-w-6xl mx-auto w-full space-y-6">
+
+        <!-- Header / Navegação -->
+        <header class="flex flex-col md:flex-row items-center justify-between gap-4 glass-card p-4 rounded-2xl shadow-xl">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-sky-500 to-indigo-500 p-3 rounded-xl shadow-lg shadow-sky-500/20">
+                    <i class="fa-solid font-bold fa-cloud-sun-rain text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                        ClimaTempo
+                    </h1>
+                    <p class="text-xs text-slate-400">Previsão Meteorológica</p>
+                </div>
+            </div>
+
+            <!-- Barra de Pesquisa -->
+            <div class="relative w-full md:w-96">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+                    <input 
+                        type="text" 
+                        id="searchInput"
+                        placeholder="Buscar cidade... (ex: São Paulo, Londres)" 
+                        class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all shadow-inner"
+                        autocomplete="off"
+                    >
+                    <button 
+                        id="geoBtn" 
+                        title="Usar minha localização"
+                        class="absolute right-2 text-slate-400 hover:text-sky-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                        <i class="fa-solid fa-location-crosshairs text-base"></i>
+                    </button>
+                </div>
+
+                <!-- Dropdown de Sugestões de Busca -->
+                <div id="suggestionsBox" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800"></div>
+            </div>
+
+            <!-- Controles / Ações -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <!-- Alternador de Unidade (°C / °F) -->
+                <div class="bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 flex items-center">
+                    <button id="btnCelsius" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-white shadow">
+                        °C
+                    </button>
+                    <button id="btnFahrenheit" class="px-3 py-1 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200">
+                        °F
+                    </button>
+                </div>
+
+                <!-- Botão de Configurações API Key -->
+                <button 
+                    id="openConfigBtn"
+                    title="Configurações de API"
+                    class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-sky-400 transition-all relative"
+                >
+                    <i class="fa-solid fa-gear text-base"></i>
+                    <span id="apiIndicator" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Banner de Status Modo Mock / Erro -->
+        <div id="statusBanner" class="hidden p-3 rounded-xl text-xs font-medium flex items-center justify-between border"></div>
+
+        <!-- Área Principal de Conteúdo -->
+        <main id="weatherContainer" class="space-y-6">
+
+            <!-- Grid Superior: Card Principal de Destaque + Resumo rápido -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Card de Destaque do Clima Atual (Ocupa 2 colunas no desktop) -->
+                <div class="lg:col-span-2 glass-card rounded-2xl p-6 md:p-8 relative overflow-hidden flex flex-col justify-between min-h-[280px]">
+                    <!-- Elemento decorativo de fundo -->
+                    <div class="absolute -right-12 -top-12 w-60 h-60 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <!-- Topo do Card: Localização e Data -->
+                    <div class="flex justify-between items-start z-10">
+                        <div>
+                            <div class="flex items-center gap-2 text-sky-400 font-medium text-sm mb-1">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span id="cityName">--</span>, <span id="countryCode">--</span>
+                            </div>
+                            <p id="currentDate" class="text-xs text-slate-400">--</p>
+                        </div>
+                        <span id="weatherBadge" class="px-3 py-1 text-xs font-semibold rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/20 capitalize">
+                            --
+                        </span>
+                    </div>
+
+                    <!-- Centro do Card: Temperatura e Ícone -->
+                    <div class="my-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
+                        <div class="flex items-baseline gap-2">
+                            <span id="currentTemp" class="text-6xl md:text-7xl font-extrabold tracking-tight text-white">--</span>
+                            <span id="tempUnitDisplay" class="text-2xl text-slate-400 font-light">°C</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                            <div id="weatherIconContainer" class="text-5xl md:text-6xl text-sky-400 drop-shadow-md">
+                                <i class="fa-solid fa-sun animate-pulse"></i>
+                            </div>
+                            <div class="sm:text-right">
+                                <p id="weatherDescription" class="text-lg font-medium capitalize text-slate-200">--</p>
+                                <p class="text-xs text-slate-400 mt-1">
+                                    Min: <span id="minTemp">--</span> • Máx: <span id="maxTemp">--</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rodapé do Card: Mensagem ou Dica de Vestuário/Clima -->
+                    <div class="pt-4 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-400 z-10">
+                        <span id="weatherAdvice" class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-sky-400"></i> Carregando informações...
+                        </span>
+                        <span id="lastUpdated" class="text-[10px] text-slate-500">Atualizado agora</span>
+                    </div>
+                </div>
+
+                <!-- Destaques Secundários / Sol e Lua -->
+                <div class="glass-card rounded-2xl p-6 flex flex-col justify-between space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-compass text-sky-400"></i> Sol e Visibilidade
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4 my-auto">
+                        <!-- Nascer do Sol -->
+                        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
+                                <i class="fa-solid fa-sun"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Nascer do Sol</p>
+                                <p id="sunriseTime" class="text-sm font-bold text-slate-200">--:--</p>
+                            </div>
+                        </div>
+
+                        <!-- Pôr do Sol -->
+                        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                                <i class="fa-solid fa-moon"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pôr do Sol</p>
+                                <p id="sunsetTime" class="text-sm font-bold text-slate-200">--:--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visibilidade / UV Status -->
+                    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Índice UV Estimado</span>
+                            <span id="uvIndexText" class="font-semibold text-emerald-400">Moderado</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div id="uvProgressBar" class="bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 h-2 rounded-full w-2/5"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Grid de Métricas Meteorológicas (6 Cards) -->
+            <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                
+                <!-- Sensação Térmica -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Sensação</span>
+                        <i class="fa-solid fa-temperature-three-quarters text-sky-400"></i>
+                    </div>
+                    <p id="feelsLike" class="text-xl font-bold text-slate-100">--</p>
+                    <p class="text-[10px] text-slate-500">Percepção real</p>
+                </div>
+
+                <!-- Umidade -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Umidade</span>
+                        <i class="fa-solid fa-droplet text-blue-400"></i>
+                    </div>
+                    <p id="humidity" class="text-xl font-bold text-slate-100">--</p>
+                    <p id="humidityStatus" class="text-[10px] text-slate-500">Nível confortável</p>
+                </div>
+
+                <!-- Vento -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Vento</span>
+                        <i class="fa-solid fa-wind text-teal-400"></i>
+                    </div>
+                    <p id="windSpeed" class="text-xl font-bold text-slate-100">--</p>
+                    <p id="windDirection" class="text-[10px] text-slate-500">Direção NNE</p>
+                </div>
+
+                <!-- Pressão Atmosférica -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Pressão</span>
+                        <i class="fa-solid fa-gauge-high text-indigo-400"></i>
+                    </div>
+                    <p id="pressure" class="text-xl font-bold text-slate-100">--</p>
+                    <p class="text-[10px] text-slate-500"> hPa (Estável)</p>
+                </div>
+
+                <!-- Visibilidade -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Visibilidade</span>
+                        <i class="fa-solid fa-eye text-purple-400"></i>
+                    </div>
+                    <p id="visibility" class="text-xl font-bold text-slate-100">--</p>
+                    <p class="text-[10px] text-slate-500">Alcance visual</p>
+                </div>
+
+                <!-- Nuvens -->
+                <div class="glass-card p-4 rounded-xl space-y-2 hover:border-slate-600 transition-colors">
+                    <div class="flex items-center justify-between text-slate-400">
+                        <span class="text-xs font-medium">Cobertura</span>
+                        <i class="fa-solid fa-cloud text-slate-400"></i>
+                    </div>
+                    <p id="cloudiness" class="text-xl font-bold text-slate-100">--</p>
+                    <p class="text-[10px] text-slate-500">Nuvens no céu</p>
+                </div>
+
+            </section>
+
+            <!-- Previsão dos Próximos 5 Dias -->
+            <section class="glass-card rounded-2xl p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-week text-sky-400"></i> Previsão para os Próximos 5 Dias
+                    </h3>
+                    <span class="text-xs text-slate-400">Projeção diária</span>
+                </div>
+
+                <!-- Container do Carrossel/Grid de Previsão -->
+                <div id="forecastContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Rodapé -->
+        <footer class="text-center text-xs text-slate-500 py-4 flex flex-col md:flex-row items-center justify-between border-t border-slate-800/80 gap-2">
+            <p>ClimaTempo App • Portfólio de Engenharia Front-end</p>
+            <p class="flex items-center gap-1">
+                Construído com <i class="fa-solid fa-heart text-rose-500 text-xs mx-0.5"></i> HTML, Tailwind CSS & JS
+            </p>
+        </footer>
+
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO DE API KEY -->
+    <div id="configModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden transition-opacity">
+        <div class="glass-card max-w-md w-full rounded-2xl p-6 space-y-6 shadow-2xl border border-slate-700">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-2 text-sky-400">
+                    <i class="fa-solid fa-key text-lg"></i>
+                    <h3 class="font-bold text-slate-100">Configuração de API</h3>
+                </div>
+                <button id="closeConfigBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs text-slate-300">
+                <p>
+                    Por padrão, este app utiliza um **Simulador de Dados Meteorológicos (Mock Data)** realista para você explorar o portfólio sem precisar cadastrar nada.
+                </p>
+                <p>
+                    Se desejar dados 100% em tempo real da sua cidade, insira sua chave gratuita da **OpenWeatherMap API**:
+                </p>
+
+                <div class="space-y-2">
+                    <label class="block font-semibold text-slate-200">OpenWeatherMap API Key:</label>
+                    <input 
+                        type="text" 
+                        id="apiKeyInput" 
+                        placeholder="Cole sua chave de API aqui..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                    >
+                </div>
+
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                    <p class="font-semibold text-slate-300"><i class="fa-solid fa-circle-question text-sky-400"></i> Como obter uma chave gratuita?</p>
+                    <p>1. Crie uma conta no site <a href="https://openweathermap.org/" target="_blank" class="text-sky-400 underline">openweathermap.org</a>.</p>
+                    <p>2. Acesse a aba **API Keys** e copie sua chave gerada.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <button id="clearKeyBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-400 transition-colors">
+                    Remover Chave
+                </button>
+                <button id="saveKeyBtn" class="px-5 py-2.5 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-white shadow-lg shadow-sky-500/20 transition-all">
+                    Salvar & Conectar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LÓGICA DO APP -->
+    <script>
+        /**
+         * APLICAÇÃO CLIMA & TEMPO - SCRIPT PRINCIPAL
+         * Lógica de gerenciamento de estado, consumo da API OpenWeatherMap
+         * e fallback para Mock Data realista para navegação perfeita.
+         */
+
+        // Estado da Aplicação
+        const state = {
+            unit: localStorage.getItem('weather_unit') || 'C', // 'C' ou 'F'
+            city: localStorage.getItem('weather_last_city') || 'São Paulo',
+            apiKey: localStorage.getItem('weather_api_key') || '',
+            currentData: null,
+            forecastData: []
+        };
+
+        // Cidades pré-definidas para sugestões rápidas
+        const POPULAR_CITIES = [
+            'São Paulo, BR', 'Rio de Janeiro, BR', 'Belo Horizonte, BR', 'Brasília, BR',
+            'Salvador, BR', 'Curitiba, BR', 'Lisboa, PT', 'Nova York, US', 'Londres, GB', 'Tóquio, JP'
+        ];
+
+        // Elementos DOM
+        const DOM = {
+            searchInput: document.getElementById('searchInput'),
+            suggestionsBox: document.getElementById('suggestionsBox'),
+            geoBtn: document.getElementById('geoBtn'),
+            btnCelsius: document.getElementById('btnCelsius'),
+            btnFahrenheit: document.getElementById('btnFahrenheit'),
+            openConfigBtn: document.getElementById('openConfigBtn'),
+            closeConfigBtn: document.getElementById('closeConfigBtn'),
+            configModal: document.getElementById('configModal'),
+            apiKeyInput: document.getElementById('apiKeyInput'),
+            saveKeyBtn: document.getElementById('saveKeyBtn'),
+            clearKeyBtn: document.getElementById('clearKeyBtn'),
+            apiIndicator: document.getElementById('apiIndicator'),
+            statusBanner: document.getElementById('statusBanner'),
+            
+            // Dados Clima
+            cityName: document.getElementById('cityName'),
+            countryCode: document.getElementById('countryCode'),
+            currentDate: document.getElementById('currentDate'),
+            weatherBadge: document.getElementById('weatherBadge'),
+            currentTemp: document.getElementById('currentTemp'),
+            tempUnitDisplay: document.getElementById('tempUnitDisplay'),
+            minTemp: document.getElementById('minTemp'),
+            maxTemp: document.getElementById('maxTemp'),
+            weatherIconContainer: document.getElementById('weatherIconContainer'),
+            weatherDescription: document.getElementById('weatherDescription'),
+            weatherAdvice: document.getElementById('weatherAdvice'),
+            lastUpdated: document.getElementById('lastUpdated'),
+            
+            // Sol e Métricas
+            sunriseTime: document.getElementById('sunriseTime'),
+            sunsetTime: document.getElementById('sunsetTime'),
+            feelsLike: document.getElementById('feelsLike'),
+            humidity: document.getElementById('humidity'),
+            humidityStatus: document.getElementById('humidityStatus'),
+            windSpeed: document.getElementById('windSpeed'),
+            pressure: document.getElementById('pressure'),
+            visibility: document.getElementById('visibility'),
+            cloudiness: document.getElementById('cloudiness'),
+            forecastContainer: document.getElementById('forecastContainer')
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            updateUnitUI();
+            updateAPIIndicator();
+            loadWeather(state.city);
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Busca
+            DOM.searchInput.addEventListener('input', handleSearchInput);
+            DOM.searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && DOM.searchInput.value.trim()) {
+                    loadWeather(DOM.searchInput.value.trim());
+                    DOM.suggestionsBox.classList.add('hidden');
+                }
+            });
+
+            // Ocultar sugestões ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (!DOM.searchInput.contains(e.target) && !DOM.suggestionsBox.contains(e.target)) {
+                    DOM.suggestionsBox.classList.add('hidden');
+                }
+            });
+
+            // Geolocalização
+            DOM.geoBtn.addEventListener('click', getUserLocation);
+
+            // Troca de Unidade
+            DOM.btnCelsius.addEventListener('click', () => setUnit('C'));
+            DOM.btnFahrenheit.addEventListener('click', () => setUnit('F'));
+
+            // Modal Configs
+            DOM.openConfigBtn.addEventListener('click', () => {
+                DOM.apiKeyInput.value = state.apiKey;
+                DOM.configModal.classList.remove('hidden');
+            });
+            DOM.closeConfigBtn.addEventListener('click', () => DOM.configModal.classList.add('hidden'));
+            
+            DOM.saveKeyBtn.addEventListener('click', () => {
+                const key = DOM.apiKeyInput.value.trim();
+                state.apiKey = key;
+                localStorage.setItem('weather_api_key', key);
+                updateAPIIndicator();
+                DOM.configModal.classList.add('hidden');
+                loadWeather(state.city);
+            });
+
+            DOM.clearKeyBtn.addEventListener('click', () => {
+                state.apiKey = '';
+                localStorage.removeItem('weather_api_key');
+                DOM.apiKeyInput.value = '';
+                updateAPIIndicator();
+                DOM.configModal.classList.add('hidden');
+                loadWeather(state.city);
+            });
+        }
+
+        // Atualizar Indicador de Status da API Key
+        function updateAPIIndicator() {
+            if (state.apiKey) {
+                DOM.apiIndicator.className = "absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50";
+                showBanner('Conectado à API OpenWeatherMap em tempo real.', 'success');
+            } else {
+                DOM.apiIndicator.className = "absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50";
+                showBanner('Modo de Demonstração Interativo (Dados Simulados). Clique na engrenagem para adicionar sua API Key.', 'info');
+            }
+        }
+
+        function showBanner(msg, type) {
+            DOM.statusBanner.classList.remove('hidden', 'bg-emerald-500/10', 'text-emerald-300', 'border-emerald-500/20', 'bg-amber-500/10', 'text-amber-300', 'border-amber-500/20', 'bg-rose-500/10', 'text-rose-300', 'border-rose-500/20');
+            
+            if (type === 'success') {
+                DOM.statusBanner.classList.add('bg-emerald-500/10', 'text-emerald-300', 'border-emerald-500/20');
+                DOM.statusBanner.innerHTML = `<span><i class="fa-solid fa-circle-check mr-2"></i> ${msg}</span>`;
+            } else if (type === 'error') {
+                DOM.statusBanner.classList.add('bg-rose-500/10', 'text-rose-300', 'border-rose-500/20');
+                DOM.statusBanner.innerHTML = `<span><i class="fa-solid fa-triangle-exclamation mr-2"></i> ${msg}</span>`;
+            } else {
+                DOM.statusBanner.classList.add('bg-amber-500/10', 'text-amber-300', 'border-amber-500/20');
+                DOM.statusBanner.innerHTML = `<span><i class="fa-solid fa-circle-info mr-2"></i> ${msg}</span>`;
+            }
+        }
+
+        // Sistema de Busca com Sugestões
+        function handleSearchInput(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                DOM.suggestionsBox.classList.add('hidden');
+                return;
+            }
+
+            const matches = POPULAR_CITIES.filter(c => c.toLowerCase().includes(query));
+            if (matches.length > 0) {
+                DOM.suggestionsBox.innerHTML = matches.map(city => `
+                    <div class="px-4 py-2.5 hover:bg-slate-800 text-xs text-slate-200 cursor-pointer flex items-center justify-between transition-colors" onclick="selectCity('${city}')">
+                        <span><i class="fa-solid fa-city text-slate-500 mr-2"></i>${city}</span>
+                        <i class="fa-solid fa-arrow-right text-[10px] text-slate-600"></i>
+                    </div>
+                `).join('');
+                DOM.suggestionsBox.classList.remove('hidden');
+            } else {
+                DOM.suggestionsBox.classList.add('hidden');
+            }
+        }
+
+        function selectCity(city) {
+            DOM.searchInput.value = city;
+            DOM.suggestionsBox.classList.add('hidden');
+            loadWeather(city);
+        }
+
+        // Alterar Unidades Temperatura
+        function setUnit(unit) {
+            if (state.unit === unit) return;
+            state.unit = unit;
+            localStorage.setItem('weather_unit', unit);
+            updateUnitUI();
+            if (state.currentData) renderWeatherData();
+        }
+
+        function updateUnitUI() {
+            if (state.unit === 'C') {
+                DOM.btnCelsius.className = "px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-white shadow";
+                DOM.btnFahrenheit.className = "px-3 py-1 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200";
+                DOM.tempUnitDisplay.textContent = "°C";
+            } else {
+                DOM.btnFahrenheit.className = "px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-white shadow";
+                DOM.btnCelsius.className = "px-3 py-1 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200";
+                DOM.tempUnitDisplay.textContent = "°F";
+            }
+        }
+
+        // Conversão de Temperatura
+        function formatTemp(tempInCelsius) {
+            if (state.unit === 'F') {
+                return Math.round((tempInCelsius * 9/5) + 32) + '°';
+            }
+            return Math.round(tempInCelsius) + '°';
+        }
+
+        // Geolocalização
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                DOM.geoBtn.classList.add('animate-spin', 'text-sky-400');
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        fetchWeatherByCoords(latitude, longitude);
+                        DOM.geoBtn.classList.remove('animate-spin', 'text-sky-400');
+                    },
+                    (error) => {
+                        DOM.geoBtn.classList.remove('animate-spin', 'text-sky-400');
+                        showBanner('Permissão de geolocalização negada. Exibindo busca manual.', 'error');
+                    }
+                );
+            } else {
+                showBanner('Geolocalização não suportada pelo seu navegador.', 'error');
+            }
+        }
+
+        // Carregar Dados Meteorológicos
+        async function loadWeather(city) {
+            showLoadingState();
+            state.city = city;
+            localStorage.setItem('weather_last_city', city);
+
+            if (state.apiKey) {
+                try {
+                    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${state.apiKey}&units=metric&lang=pt_br`);
+                    if (!response.ok) throw new Error('Cidade não encontrada');
+                    const data = await response.json();
+                    
+                    // Buscar previsão de 5 dias
+                    const forecastRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${state.apiKey}&units=metric&lang=pt_br`);
+                    const forecastData = await forecastRes.json();
+
+                    processRealData(data, forecastData);
+                } catch (err) {
+                    showBanner(`Erro na API real: ${err.message}. Alternando para dados simulados.`, 'error');
+                    setTimeout(() => processMockData(city), 1000);
+                }
+            } else {
+                // Usar simulador com delay sutil
+                setTimeout(() => processMockData(city), 400);
+            }
+        }
+
+        async function fetchWeatherByCoords(lat, lon) {
+            showLoadingState();
+            if (state.apiKey) {
+                try {
+                    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${state.apiKey}&units=metric&lang=pt_br`);
+                    const data = await response.json();
+                    const forecastRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${state.apiKey}&units=metric&lang=pt_br`);
+                    const forecastData = await forecastRes.json();
+                    processRealData(data, forecastData);
+                } catch (err) {
+                    processMockData('Sua Localização');
+                }
+            } else {
+                setTimeout(() => processMockData('Sua Localização'), 400);
+            }
+        }
+
+        // Processar Dados Reais da OpenWeatherMap
+        function processRealData(current, forecast) {
+            state.currentData = {
+                city: current.name,
+                country: current.sys.country,
+                temp: current.main.temp,
+                minTemp: current.main.temp_min,
+                maxTemp: current.main.temp_max,
+                feelsLike: current.main.feels_like,
+                humidity: current.main.humidity,
+                pressure: current.main.pressure,
+                windSpeed: current.wind.speed * 3.6, // m/s para km/h
+                visibility: (current.visibility / 1000).toFixed(1),
+                cloudiness: current.clouds.all,
+                description: current.weather[0].description,
+                mainCondition: current.weather[0].main,
+                sunrise: new Date(current.sys.sunrise * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                sunset: new Date(current.sys.sunset * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+
+            // Filtrar previsão para 1 item por dia
+            const dailyList = forecast.list.filter((_, index) => index % 8 === 0).slice(0, 5);
+            state.forecastData = dailyList.map(item => ({
+                day: new Date(item.dt * 1000).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+                tempMax: item.main.temp_max,
+                tempMin: item.main.temp_min,
+                condition: item.weather[0].main,
+                description: item.weather[0].description
+            }));
+
+            renderWeatherData();
+        }
+
+        // Gerador de Dados Simulados (Mock Data) Realistas por Cidade
+        function processMockData(cityName) {
+            const seed = cityName.length;
+            const baseTemp = 18 + (seed % 12); // Gera temperaturas plausíveis entre 18°C e 30°C
+
+            const conditions = [
+                { main: 'Clear', desc: 'Céu Limpo', icon: 'fa-sun' },
+                { main: 'Clouds', desc: 'Parcialmente Nublado', icon: 'fa-cloud-sun' },
+                { main: 'Rain', desc: 'Chuva Moderada', icon: 'fa-cloud-showers-heavy' },
+                { main: 'Drizzle', desc: 'Garoa Leve', icon: 'fa-cloud-rain' }
+            ];
+            const cond = conditions[seed % conditions.length];
+
+            state.currentData = {
+                city: cityName.split(',')[0],
+                country: cityName.split(',')[1] ? cityName.split(',')[1].trim() : 'BR',
+                temp: baseTemp,
+                minTemp: baseTemp - 3,
+                maxTemp: baseTemp + 5,
+                feelsLike: baseTemp + 1,
+                humidity: 55 + (seed % 30),
+                pressure: 1012 + (seed % 8),
+                windSpeed: 12 + (seed % 15),
+                visibility: '10.0',
+                cloudiness: 20 + (seed % 50),
+                description: cond.desc,
+                mainCondition: cond.main,
+                sunrise: '06:15',
+                sunset: '18:28'
+            };
+
+            const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const todayIdx = new Date().getDay();
+
+            state.forecastData = Array.from({ length: 5 }).map((_, i) => {
+                const nextDayIdx = (todayIdx + i + 1) % 7;
+                const forecastCond = conditions[(seed + i) % conditions.length];
+                return {
+                    day: days[nextDayIdx],
+                    tempMax: baseTemp + (i % 3) + 2,
+                    tempMin: baseTemp - (i % 2) - 2,
+                    condition: forecastCond.main,
+                    description: forecastCond.desc
+                };
+            });
+
+            renderWeatherData();
+        }
+
+        // Renderizar na Interface
+        function renderWeatherData() {
+            const data = state.currentData;
+            if (!data) return;
+
+            DOM.cityName.textContent = data.city;
+            DOM.countryCode.textContent = data.country;
+            DOM.currentDate.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            
+            DOM.weatherBadge.textContent = data.description;
+            DOM.currentTemp.textContent = formatTemp(data.temp).replace('°', '');
+            DOM.minTemp.textContent = formatTemp(data.minTemp);
+            DOM.maxTemp.textContent = formatTemp(data.maxTemp);
+            DOM.weatherDescription.textContent = data.description;
+
+            // Ícone do clima
+            DOM.weatherIconContainer.innerHTML = `<i class="fa-solid ${getWeatherIconClass(data.mainCondition)}"></i>`;
+
+            // Dica de Clima
+            DOM.weatherAdvice.innerHTML = `<i class="fa-solid fa-lightbulb text-sky-400"></i> ${getWeatherAdvice(data.mainCondition, data.temp)}`;
+            DOM.lastUpdated.textContent = `Atualizado às ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+            // Métricas
+            DOM.sunriseTime.textContent = data.sunrise;
+            DOM.sunsetTime.textContent = data.sunset;
+            DOM.feelsLike.textContent = formatTemp(data.feelsLike);
+            DOM.humidity.textContent = `${data.humidity}%`;
+            DOM.humidityStatus.textContent = data.humidity > 70 ? 'Umidade elevada' : 'Umidade adequada';
+            DOM.windSpeed.textContent = `${Math.round(data.windSpeed)} km/h`;
+            DOM.pressure.textContent = `${data.pressure} hPa`;
+            DOM.visibility.textContent = `${data.visibility} km`;
+            DOM.cloudiness.textContent = `${data.cloudiness}%`;
+
+            // Renderizar Previsão de 5 dias
+            renderForecast();
+        }
+
+        function renderForecast() {
+            DOM.forecastContainer.innerHTML = state.forecastData.map((item, idx) => `
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-center flex flex-col items-center justify-between hover:border-slate-700 transition-all">
+                    <span class="text-xs font-semibold text-slate-300 uppercase">${item.day}</span>
+                    <div class="my-3 text-2xl text-sky-400">
+                        <i class="fa-solid ${getWeatherIconClass(item.condition)}"></i>
+                    </div>
+                    <p class="text-[11px] text-slate-400 capitalize mb-2 line-clamp-1">${item.description}</p>
+                    <div class="text-xs font-bold text-slate-200">
+                        <span>${formatTemp(item.tempMax)}</span>
+                        <span class="text-slate-500 font-normal ml-1">${formatTemp(item.tempMin)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Mapeamento de Ícones FontAwesome por Condição Meteorológica
+        function getWeatherIconClass(condition) {
+            switch (condition.toLowerCase()) {
+                case 'clear': return 'fa-sun text-amber-400';
+                case 'clouds': return 'fa-cloud-sun text-sky-300';
+                case 'rain': return 'fa-cloud-showers-heavy text-blue-400';
+                case 'drizzle': return 'fa-cloud-rain text-teal-300';
+                case 'thunderstorm': return 'fa-cloud-bolt text-indigo-400';
+                case 'snow': return 'fa-snowflake text-cyan-200';
+                case 'mist':
+                case 'fog': return 'fa-smog text-slate-400';
+                default: return 'fa-cloud text-sky-400';
+            }
+        }
+
+        // Gera conselho/dica dinâmica
+        function getWeatherAdvice(condition, temp) {
+            if (condition.toLowerCase().includes('rain')) return 'Leve um guarda-chuva hoje!';
+            if (temp > 28) return 'Dia quente! Lembre-se de se hidratar com frequência.';
+            if (temp < 15) return 'Temperatura baixa. Vista um casaco ao sair.';
+            return 'Tempo agradável para atividades ao ar livre.';
+        }
+
+        // Feedback Visual de Carregamento (Skeleton / Indicator)
+        function showLoadingState() {
+            DOM.currentTemp.textContent = '--';
+            DOM.weatherBadge.textContent = 'Carregando...';
+            DOM.weatherDescription.textContent = 'Buscando informações...';
+        }
+    </script>
+</body>
+</html>
